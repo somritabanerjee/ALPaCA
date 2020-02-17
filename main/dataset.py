@@ -248,13 +248,13 @@ class GymDataset(Dataset):
         return x,y
 
     
-class Randomizer(gym.Wrapper):
-    def __init__(self, env, prereset_fn):
-        super(Randomizer, self).__init__(env)
-        self.prereset_fn = prereset_fn
+# class Randomizer(gym.Wrapper):
+#     def __init__(self, env, prereset_fn):
+#         super(Randomizer, self).__init__(env)
+#         self.prereset_fn = prereset_fn
     
-    def reset(self):
-        self.prereset_fn(self.unwrapped)
-        return self.env.reset()
+#     def reset(self):
+#         self.prereset_fn(self.unwrapped)
+#         return self.env.reset()
         
     

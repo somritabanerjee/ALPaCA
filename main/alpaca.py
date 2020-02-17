@@ -34,13 +34,13 @@ class ALPaCA:
             
             # try making it learnable
             #self.SigEps = tf.get_variable('sigma_eps', initializer=self.SigEps )
-
+            
             # Prior Parameters of last layer
             self.K = tf.get_variable('K_init',shape=[last_layer,self.y_dim]) #\bar{K}_0
 
             self.L_asym = tf.get_variable('L_asym',shape=[last_layer,last_layer]) # cholesky decomp of \Lambda_0
             self.L = self.L_asym @ tf.transpose(self.L_asym) # \Lambda_0
-            
+
             # x: query points (M, N_test, x_dim)
             # y: target points (M, N_test, y_dim) ( what K^T phi(x) should approximate )
             self.x = tf.placeholder(tf.float32, shape=[None,None,self.x_dim], name="x")
@@ -73,13 +73,39 @@ class ALPaCA:
                 
             # Evaluate f_nom if given, else use 0
             self.f_nom_cx = tf.zeros_like(self.context_y)
-            self.f_nom_x = 0 #tf.zeros_like(self.y)
+            # self.f_nom_x = 0
+            self.f_nom_x = tf.zeros_like(self.y)
+
             if self.f_nom is not None:
+                # self.f_nom_cx is (M, N_context, f_out_shape) 
                 self.f_nom_cx = self.f_nom(self.context_x)
+                # self.f_nom_cx is (M, N_test, f_out_shape) 
                 self.f_nom_x = self.f_nom(self.x)
+        
+                self.f_out_shape = self.f_nom_cx.shape[2]
+                self.theta = tf.ones(shape=[self.f_out_shape,self.y_dim]) 
+
+                self.K_aug = tf.get_variable('K_aug_init',shape=[last_layer+self.f_out_shape,self.y_dim]) #\bar{K}_0
+                self.K = self.K_aug
+
+                self.L_aug_asym = tf.get_variable('L_aug_asym',shape=[last_layer+self.f_out_shape,last_layer+self.f_out_shape]) # cholesky decomp of \Lambda_0
+                self.L_aug = self.L_aug_asym @ tf.transpose(self.L_aug_asym) # \Lambda_0
+                self.L_asym = self.L_aug_asym
+                self.L = self.L_aug
                 
-            # Subtract f_nom from context points before BLR
-            self.context_y_blr = self.context_y - self.f_nom_cx
+                print('shape of self.context_phi ',self.context_phi)
+                print('shape of self.f_nom_cx ',self.f_nom_cx)
+                self.context_phi_aug = tf.concat([self.context_phi, self.f_nom_cx], axis = 2)
+                print('shape of self.context_phi_aug ',self.context_phi_aug)
+                self.context_phi = self.context_phi_aug
+
+                print('shape of self.phi ',self.phi)
+                print('shape of self.f_nom_x ',self.f_nom_x)
+                self.phi_aug = tf.concat([self.phi, self.f_nom_x], axis = 2)
+                print('shape of self.phi_aug ',self.phi_aug)
+                self.phi = self.phi_aug
+
+            self.context_y_blr = self.context_y
 
             # Compute posterior weights from context data
             with tf.variable_scope('blr', reuse=None):
@@ -146,7 +172,15 @@ class ALPaCA:
             predictive_nll = negative log likelihood of self.y under the posterior predictive density
                         shape (M, T) 
         """
-        mu_pred = batch_matmul(tf.matrix_transpose(self.posterior_K), self.phi) + self.f_nom_x
+        print('x_dim ',self.x_dim)
+        print('y_dim ',self.y_dim)
+        print('phi_dim ',self.phi_dim)
+        print('phi shape ',self.phi.shape)
+        print('context phi shape ',self.context_phi.shape)
+        # print('fnomx shape ',self.f_nom_x.shape)
+        print('K shape ',self.posterior_K.shape)
+
+        mu_pred = batch_matmul(tf.matrix_transpose(self.posterior_K), self.phi)
         spread_fac = 1 + batch_quadform(self.posterior_L_inv, self.phi)
         Sig_pred = tf.expand_dims(spread_fac, axis=-1)*tf.reshape(self.SigEps, (1,1,self.y_dim,self.y_dim))
         
@@ -189,6 +223,7 @@ class ALPaCA:
 
             if i % 50 == 0:
                 print('loss:',loss)
+                print('K shape ',self.posterior_K.shape)
 
             self.train_writer.add_summary(summary, self.updates_so_far)
             self.updates_so_far += 1
