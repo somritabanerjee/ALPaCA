@@ -147,6 +147,52 @@ class MultistepDataset(Dataset):
         y += self.noise_std*self.np_random.randn(x.shape[1])
         return y
 
+class RockerBogieDataset(Dataset):
+    def __init__(self, config, rover):
+        self.x_range = config['x_range']
+        self.v_range = config['v_range']
+        self.tau_range = config['tau_range']
+        self.mu_range = config['mu_range']
+        self.crr_range = config['crr_range']
+        self.rover = rover
+        self.dt = config['dt']
+
+    def sample(self, n_funcs, n_samples):
+        o_dim = 2
+        u_dim = 3
+        x_dim = o_dim + u_dim
+        y_dim = o_dim
+        x = np.zeros((n_funcs, n_samples, x_dim))
+        y = np.zeros((n_funcs, n_samples, y_dim))
+
+        mu_list = self.mu_range[0] + np.random.rand(n_funcs)*(self.mu_range[1] - self.mu_range[0])
+        crr_list = self.crr_range[0] + np.random.rand(n_funcs)*(self.crr_range[1] - self.crr_range[0])
+
+        # print('n_funcs = ', n_funcs)
+        # print('n_samples = ', n_samples)
+        # print('np.shape(mu_list) = ', np.shape(mu_list))
+        # print('np.shape(crr_list) = ', np.shape(crr_list))
+
+        for i in range(n_funcs):
+            x_samp = self.x_range[0] + np.random.rand(n_samples)*(self.x_range[1] - self.x_range[0])
+            v_samp = self.v_range[0] + np.random.rand(n_samples)*(self.v_range[1] - self.v_range[0])
+            tau_samp = self.tau_range[0] + np.random.rand(n_samples,u_dim)*(self.tau_range[1] - self.tau_range[0])
+            # print('np.shape(tau_samp) = ', np.shape(tau_samp))
+            for j in range(n_samples):
+                # print('j=',j)
+                x2, vel_rover, acc_rover, Fxnet, Ns, Ts, wheel_slipping = self.rover.get_next_state(x_samp[j], v_samp[j], tau_samp[j,0], tau_samp[j,1], tau_samp[j,2], mu_list[i], self.dt, crr = crr_list[i])
+                x[i,j,0] = x_samp[j]
+                x[i,j,1] = v_samp[j]
+                y[i,j,0] = x2
+                y[i,j,1] = vel_rover
+                # print("current x=",x[i,j,0])
+                # print("current vel=",x[i,j,1])
+                # print("torques applied=",tau_samp[j,:])
+                # print("new x=",y[i,j,0])
+                # print("new vel=",y[i,j,1])
+
+        return x,y
+
 # Assumes env has a forward_dynamics(x,u) function
 class GymUniformSampleDataset(Dataset):
     def __init__(self, env):
