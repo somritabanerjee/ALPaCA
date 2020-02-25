@@ -14,8 +14,16 @@ activation: 'tanh'
 x_range: [0.0, 10.0]
 v_range: [0.0, 1.0]
 tau_range: [-2.0, 2.0]
-mu_range: [0.90, 0.90]
-# mu_range: [0.30, 0.90]
-crr_range: [0.01, 0.01] # loose sand is 0.2
-# crr_range: [0.0, 0.08] # loose sand is 0.2
 dt: 0.1
+# Note: pick mu_range and crr_range at runtime
+mu_range_dry: [0.65, 0.75] # dry earth
+crr_range_dry: [0.03, 0.08] # dry earth
+
+mu_range_gravel: [0.55, 0.60] # gravel
+crr_range_gravel: [0.02, 0.03] # gravel
+
+mu_range_sand: [0.55, 0.60] # sand
+crr_range_sand: [0.20, 0.40] # sand
+
+mu_range_fixed: [0.60, 0.60] # single value of mu for comparison
+crr_range_fixed: [0.02, 0.02] # single value of crr for comparison
